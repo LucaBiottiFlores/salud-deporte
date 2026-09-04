@@ -1,7 +1,7 @@
 # App Salud y Deporte — Documento de Producto
 
 > Basado en `001.idea-salud-deporte.md`
-> Versión: 0.2 · Fecha: 2026-09-04
+> Versión: 0.3 · Fecha: 2026-09-04
 
 ## 1. Visión
 
@@ -47,8 +47,17 @@ tres parámetros:
 - **RF8** — Indicador visual claro del estado actual (trabajando / descansando) y del progreso.
 - **RF9** — Contador de series ("Serie 3 de 5").
 - **RF10** — Aviso de finalización al completar todas las series (visual y sonoro).
-- **RF11** — Feedback sonoro en cada transición (trabajo → descanso → trabajo → final),
-  con tonos suaves y de baja intensidad.
+
+### 5.3 Avisos y cuenta regresiva
+
+- **RF11** — Antes de la primera serie se ejecuta una cuenta regresiva de 10 segundos.
+- **RF12** — En los últimos 3 segundos de cada intervalo (cuenta regresiva, trabajo y
+  descanso) suena una señal de cuenta regresiva "3, 2, 1", al estilo de los juegos de
+  carreras pero con un sonido propio.
+- **RF13** — Al comenzar cada intervalo de trabajo suena un "GO" distintivo.
+- **RF14** — A mitad del intervalo de trabajo, una voz avisa: "Llevas la mitad".
+- **RF15** — Cuando quedan 10 segundos de trabajo, una voz avisa: "10 segundos".
+- **RF16** — Al comenzar cada intervalo de descanso suena un tono suave distintivo.
 
 ## 6. Reglas de negocio / lógica
 
@@ -57,6 +66,8 @@ tres parámetros:
   Total: 5 intervalos de trabajo + 4 de descanso.
 - Fórmula: `series_trabajo = N` · `series_descanso = N − 1`.
 - Validación: tiempos y series deben ser enteros positivos (mayores a 0). Sin límites máximos.
+- La cuenta regresiva de 10 s solo ocurre antes de la primera serie; las siguientes series
+  se anuncian con los últimos 3 s del descanso anterior.
 
 ## 7. Casos de uso
 
@@ -92,12 +103,16 @@ tres parámetros:
   justo al terminar la última serie de trabajo.
 - El temporizador muestra cuenta regresiva y cambia de estado automáticamente.
 - Los parámetros se validan (no se aceptan tiempos en 0 ni series menores a 1).
+- Antes de la primera serie hay una cuenta regresiva de 10 s, y los últimos 3 s de
+  cada intervalo emiten la señal de cuenta regresiva.
 
 ## 12. Decisiones tomadas
 
 - **Plataforma**: web/PWA (mobile-first). Las versiones nativas se evalúan más adelante,
   reutilizando el código con Capacitor.
 - **Sonido**: incluido en la v1, con tonos simples y suaves.
+- **Voz**: avisos hablados ("Llevas la mitad", "10 segundos") mediante síntesis de voz del navegador.
 - **Límites**: sin límites máximos para series ni tiempos (solo enteros positivos).
 - **Idioma de la interfaz**: español.
-- **Estilo visual**: claro y minimalista, con colores diferenciados para trabajo (índigo) y descanso (verde).
+- **Estilo visual**: claro y minimalista, con colores diferenciados para trabajo (índigo),
+  descanso (verde) y cuenta regresiva (ámbar).

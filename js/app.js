@@ -24,11 +24,12 @@
   const doneSummary = $("doneSummary");
 
   let config = { work: 30, rest: 15, series: 5 };
-  let seq = [];
+  let phases = [];
   let idx = 0;
   let remainingMs = 0;
   let endTime = 0;
   let intervalId = null;
+  let lastShownSecond = null;
   let muted = false;
   let wakeLock = null;
 
@@ -61,21 +62,68 @@
     osc.stop(t0 + durSec + 0.05);
   }
 
-  const playWork = () => tone(880, 0.18, 0.15);
-  const playRest = () => tone(523.25, 0.18, 0.13);
+  // Señal "3, 2, 1" (últimos 3 segundos de cada intervalo)
+  function playCountdownBeep(step) {
+    const freqs = { 3: 392, 2: 440, 1: 523 };
+    tone(freqs[step] || 440, 0.12, 0.16, "triangle");
+  }
+
+  // Sonido de "ya" al empezar el trabajo
+  function playGo() {
+    tone(660, 0.22, 0.2, "triangle");
+  }
+
+  // Tono suave al empezar el descanso
+  function playRestTone() {
+    tone(392, 0.2, 0.13, "sine");
+  }
+
   const playDone = () => {
     tone(659.25, 0.16, 0.15);
     setTimeout(() => tone(880, 0.28, 0.15), 180);
   };
 
+  // ---------- Voz (avisos hablados) ----------
+  function say(text) {
+    if (muted) return;
+    try {
+      if (!("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "es-CL";
+      u.rate = 1;
+      u.volume = 0.9;
+      const voices = speechSynthesis.getVoices();
+      const es = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
+      if (es) u.voice = es;
+      speechSynthesis.speak(u);
+    } catch (_) {}
+  }
+
+  // Desbloquea speechSynthesis en iOS/Safari (requiere un gesto del usuario)
+  function primeSpeech() {
+    try {
+      if ("speechSynthesis" in window) {
+        const u = new SpeechSynthesisUtterance(" ");
+        u.volume = 0;
+        speechSynthesis.speak(u);
+      }
+    } catch (_) {}
+  }
+
+  const sayHalf = () => say("Llevas la mitad");
+  const sayTen = () => say("10 segundos");
+
   // ---------- Lógica de intervalos ----------
-  function buildSeq(work, rest, series) {
-    const s = [];
+  function buildPhases(work, rest, series) {
+    const p = [];
+    p.push({ type: "ready", seconds: 10 });
     for (let i = 0; i < series; i++) {
-      s.push({ type: "work", seconds: work });
-      if (i < series - 1) s.push({ type: "rest", seconds: rest });
+      p.push({ type: "work", seconds: work, seriesNumber: i + 1 });
+      if (i < series - 1) {
+        p.push({ type: "rest", seconds: rest, seriesNumber: i + 1 });
+      }
     }
-    return s;
+    return p;
   }
 
   function readConfig() {
@@ -90,18 +138,6 @@
       throw new Error("Ingresa números enteros positivos (mínimo 1). Sin límite máximo.");
     }
     return { work, rest, series };
-  }
-
-  function workCountUpTo(i) {
-    let c = 0;
-    for (let j = 0; j <= i; j++) if (seq[j].type === "work") c++;
-    return c;
-  }
-
-  function restCountUpTo(i) {
-    let c = 0;
-    for (let j = 0; j <= i; j++) if (seq[j].type === "rest") c++;
-    return c;
   }
 
   // ---------- Control de sesión ----------
@@ -119,9 +155,10 @@
     }
     configError.hidden = true;
     config = cfg;
-    seq = buildSeq(cfg.work, cfg.rest, cfg.series);
+    phases = buildPhases(cfg.work, cfg.rest, cfg.series);
     idx = 0;
     ensureAudio();
+    primeSpeech();
     hide(configEl);
     hide(doneEl);
     show(timerEl);
@@ -130,39 +167,70 @@
   }
 
   function beginPhase() {
-    if (idx >= seq.length) {
+    if (idx >= phases.length) {
       finish();
       return;
     }
-    const phase = seq[idx];
-    phaseLabel.textContent = phase.type === "work" ? "Trabajo" : "Descanso";
-    timerEl.dataset.phase = phase.type;
-    if (phase.type === "work") {
-      seriesCounter.textContent = `Serie ${workCountUpTo(idx)} de ${config.series}`;
-      playWork();
+    const phase = phases[idx];
+    lastShownSecond = null;
+    phase.halfSaid = false;
+    phase.tenSaid = false;
+
+    if (phase.type === "ready") {
+      phaseLabel.textContent = "Prepárate";
+      seriesCounter.textContent = `Serie 1 de ${config.series}`;
+    } else if (phase.type === "work") {
+      phaseLabel.textContent = "Trabajo";
+      seriesCounter.textContent = `Serie ${phase.seriesNumber} de ${config.series}`;
+      playGo();
     } else {
-      seriesCounter.textContent = `Descanso ${restCountUpTo(idx)} de ${config.series - 1}`;
-      playRest();
+      phaseLabel.textContent = "Descanso";
+      seriesCounter.textContent = `Descanso ${phase.seriesNumber} de ${config.series - 1}`;
+      playRestTone();
     }
+    timerEl.dataset.phase = phase.type;
+
     remainingMs = phase.seconds * 1000;
     endTime = Date.now() + remainingMs;
-    updateDisplay();
+    updateDisplay(Math.ceil(remainingMs / 1000));
     clearInterval(intervalId);
     intervalId = setInterval(tick, 100);
   }
 
   function tick() {
     remainingMs = Math.max(0, endTime - Date.now());
-    updateDisplay();
+    const phase = phases[idx];
+    const shownSecond = Math.ceil(remainingMs / 1000);
+    updateDisplay(shownSecond);
+
+    if (shownSecond !== lastShownSecond) {
+      lastShownSecond = shownSecond;
+      if (shownSecond >= 1 && shownSecond <= 3) {
+        playCountdownBeep(shownSecond);
+      }
+    }
+
+    if (phase.type === "work") {
+      const totalMs = phase.seconds * 1000;
+      if (!phase.halfSaid && remainingMs <= totalMs / 2) {
+        phase.halfSaid = true;
+        sayHalf();
+      }
+      if (!phase.tenSaid && remainingMs <= 10000 && totalMs > 10000) {
+        phase.tenSaid = true;
+        sayTen();
+      }
+    }
+
     if (remainingMs <= 0) {
       idx++;
       beginPhase();
     }
   }
 
-  function updateDisplay() {
-    const phase = seq[idx];
-    timeDisplay.textContent = String(Math.ceil(remainingMs / 1000));
+  function updateDisplay(shownSecond) {
+    const phase = phases[idx];
+    timeDisplay.textContent = String(shownSecond);
     const total = phase.seconds * 1000;
     progressFill.style.width = `${Math.min(100, ((total - remainingMs) / total) * 100)}%`;
   }
@@ -201,7 +269,10 @@
     playDone();
     hide(timerEl);
     show(doneEl);
-    const totalSec = seq.reduce((a, p) => a + p.seconds, 0);
+    const totalSec = phases.reduce(
+      (a, p) => a + (p.type === "ready" ? 0 : p.seconds),
+      0
+    );
     const mm = Math.floor(totalSec / 60);
     const ss = totalSec % 60;
     doneSummary.textContent =
