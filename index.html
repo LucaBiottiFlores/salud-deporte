@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="Temporizador Tabata configurable: trabajo, descanso y series.">
+  <title>Tabata · Salud y Deporte</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>Tabata</h1>
+      <p class="tagline">Trabajo · Descanso · Series</p>
+    </header>
+
+    <!-- Configuración -->
+    <section id="config" class="panel">
+      <h2>Configurar sesión</h2>
+      <div class="fields">
+        <label class="field">
+          <span>Trabajo (segundos)</span>
+          <input id="work" type="number" min="1" step="1" inputmode="numeric" value="30">
+        </label>
+        <label class="field">
+          <span>Descanso (segundos)</span>
+          <input id="rest" type="number" min="1" step="1" inputmode="numeric" value="15">
+        </label>
+        <label class="field">
+          <span>Series</span>
+          <input id="series" type="number" min="1" step="1" inputmode="numeric" value="5">
+        </label>
+      </div>
+      <button id="startBtn" class="btn btn-primary">Comenzar</button>
+      <p id="configError" class="error" hidden></p>
+    </section>
+
+    <!-- Temporizador -->
+    <section id="timer" class="panel" hidden>
+      <div class="phase-label" id="phaseLabel">Trabajo</div>
+      <div class="time" id="timeDisplay">30</div>
+      <div class="series-counter" id="seriesCounter">Serie 1 de 5</div>
+      <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="controls">
+        <button id="pauseBtn" class="btn">Pausar</button>
+        <button id="resetBtn" class="btn btn-ghost">Salir</button>
+        <button id="muteBtn" class="btn btn-ghost" aria-pressed="false" aria-label="Silenciar">🔊</button>
+      </div>
+    </section>
+
+    <!-- Fin de sesión -->
+    <section id="done" class="panel" hidden>
+      <div class="done-icon">🏁</div>
+      <h2>¡Sesión completa!</h2>
+      <p id="doneSummary"></p>
+      <button id="againBtn" class="btn btn-primary">Nueva sesión</button>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
