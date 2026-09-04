@@ -1,7 +1,7 @@
 # App Salud y Deporte — Documento de Producto
 
 > Basado en `001.idea-salud-deporte.md`
-> Versión: 0.3 · Fecha: 2026-09-04
+> Versión: 0.4 · Fecha: 2026-09-04
 
 ## 1. Visión
 
@@ -59,6 +59,16 @@ tres parámetros:
 - **RF15** — Cuando quedan 10 segundos de trabajo, una voz avisa: "10 segundos".
 - **RF16** — Al comenzar cada intervalo de descanso suena un tono suave distintivo.
 
+### 5.4 Personalización y persistencia
+
+- **RF17** — Los valores de configuración (trabajo, descanso, series y sonido) se recuerdan
+  entre sesiones, usando el almacenamiento local del navegador.
+- **RF18** — Al iniciar la cuenta regresiva inicial, una voz dice: "Atención".
+- **RF19** — El usuario puede elegir entre 3 variedades de sonido (Clásico, Agudo y Grave).
+- **RF20** — La voz usa acento de español latinoamericano neutro.
+- **RF21** — Los sonidos tienen volumen suficiente para oírse en ambientes ruidosos
+  (gimnasios y espacios abiertos).
+
 ## 6. Reglas de negocio / lógica
 
 - Ejemplo: 30 s de trabajo, 15 s de descanso, 5 series →
@@ -93,7 +103,7 @@ tres parámetros:
 
 ## 10. Roadmap
 
-- **Iteración 2**: vibración y guardar configuraciones.
+- **Iteración 2**: vibración y guardar configuraciones en la nube.
 - **Iteración 3**: historial de sesiones.
 - **Iteración 4**: nuevos módulos de salud (agua, sueño, nutrición, etc.).
 
@@ -105,13 +115,17 @@ tres parámetros:
 - Los parámetros se validan (no se aceptan tiempos en 0 ni series menores a 1).
 - Antes de la primera serie hay una cuenta regresiva de 10 s, y los últimos 3 s de
   cada intervalo emiten la señal de cuenta regresiva.
+- Al recargar la app, se conservan la última configuración y el sonido elegido.
 
 ## 12. Decisiones tomadas
 
 - **Plataforma**: web/PWA (mobile-first). Las versiones nativas se evalúan más adelante,
   reutilizando el código con Capacitor.
-- **Sonido**: incluido en la v1, con tonos simples y suaves.
-- **Voz**: avisos hablados ("Llevas la mitad", "10 segundos") mediante síntesis de voz del navegador.
+- **Sonido**: incluido en la v1, con tonos simples, 3 variedades seleccionables y volumen
+  pensado para ambientes ruidosos.
+- **Voz**: avisos hablados ("Atención", "Llevas la mitad", "10 segundos") mediante síntesis
+  de voz del navegador, con acento de español latinoamericano neutro.
+- **Persistencia**: la configuración y el sonido se guardan localmente en el navegador.
 - **Límites**: sin límites máximos para series ni tiempos (solo enteros positivos).
 - **Idioma de la interfaz**: español.
 - **Estilo visual**: claro y minimalista, con colores diferenciados para trabajo (índigo),

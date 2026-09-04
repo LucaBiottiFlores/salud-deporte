@@ -1,5 +1,6 @@
 (() => {
   const $ = (id) => document.getElementById(id);
+  const STORAGE_KEY = "salud-deporte:config";
 
   const configEl = $("config");
   const timerEl = $("timer");
@@ -8,6 +9,7 @@
   const workInput = $("work");
   const restInput = $("rest");
   const seriesInput = $("series");
+  const soundSelect = $("soundSelect");
 
   const startBtn = $("startBtn");
   const pauseBtn = $("pauseBtn");
@@ -33,7 +35,37 @@
   let muted = false;
   let wakeLock = null;
 
-  // ---------- Sonido (Web Audio, tonos suaves) ----------
+  // ---------- Sonidos (3 variedades) ----------
+  const SOUNDS = {
+    clasico: {
+      label: "Clásico",
+      wave: "triangle",
+      beeps: { 3: 392, 2: 440, 1: 523 },
+      go: 660,
+      rest: 392,
+      vol: 0.5
+    },
+    agudo: {
+      label: "Agudo",
+      wave: "sine",
+      beeps: { 3: 523, 2: 587, 1: 659 },
+      go: 880,
+      rest: 494,
+      vol: 0.5
+    },
+    grave: {
+      label: "Grave",
+      wave: "triangle",
+      beeps: { 3: 262, 2: 294, 1: 330 },
+      go: 440,
+      rest: 262,
+      vol: 0.5
+    }
+  };
+
+  let soundName = "clasico";
+  let soundPreset = SOUNDS.clasico;
+
   let audioCtx = null;
 
   function ensureAudio() {
@@ -46,7 +78,7 @@
     }
   }
 
-  function tone(freq, durSec, vol = 0.16, type = "sine") {
+  function tone(freq, durSec, vol = 0.5, type = "triangle") {
     if (muted || !audioCtx) return;
     const t0 = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
@@ -62,44 +94,71 @@
     osc.stop(t0 + durSec + 0.05);
   }
 
-  // Señal "3, 2, 1" (últimos 3 segundos de cada intervalo)
   function playCountdownBeep(step) {
-    const freqs = { 3: 392, 2: 440, 1: 523 };
-    tone(freqs[step] || 440, 0.12, 0.16, "triangle");
+    const p = soundPreset;
+    tone(p.beeps[step] || p.beeps[1], 0.15, p.vol, p.wave);
   }
 
-  // Sonido de "ya" al empezar el trabajo
   function playGo() {
-    tone(660, 0.22, 0.2, "triangle");
+    const p = soundPreset;
+    tone(p.go, 0.26, p.vol, p.wave);
   }
 
-  // Tono suave al empezar el descanso
   function playRestTone() {
-    tone(392, 0.2, 0.13, "sine");
+    const p = soundPreset;
+    tone(p.rest, 0.22, p.vol * 0.8, p.wave);
   }
 
-  const playDone = () => {
-    tone(659.25, 0.16, 0.15);
-    setTimeout(() => tone(880, 0.28, 0.15), 180);
-  };
+  function playDone() {
+    const p = soundPreset;
+    tone(p.go, 0.18, p.vol, p.wave);
+    setTimeout(() => tone(p.beeps[1], 0.32, p.vol, p.wave), 190);
+  }
 
-  // ---------- Voz (avisos hablados) ----------
+  // ---------- Voz (español latino neutro) ----------
+  let voicesCache = [];
+
+  function refreshVoices() {
+    try {
+      voicesCache = speechSynthesis.getVoices();
+    } catch (_) {}
+  }
+
+  if ("speechSynthesis" in window) {
+    refreshVoices();
+    speechSynthesis.addEventListener("voiceschanged", refreshVoices);
+  }
+
+  function pickLatinVoice() {
+    let voices = voicesCache;
+    if (!voices.length) {
+      try { voices = speechSynthesis.getVoices(); } catch (_) { voices = []; }
+    }
+    const lower = (s) => (s || "").toLowerCase();
+    const tags = ["es-419", "es-mx", "es-ar", "es-co", "es-cl", "es-pe", "es-ve", "es-us"];
+    for (const tag of tags) {
+      const v = voices.find((v) => lower(v.lang) === tag);
+      if (v) return v;
+    }
+    return voices.find(
+      (v) => lower(v.lang).startsWith("es") && !lower(v.lang).startsWith("es-es")
+    ) || null;
+  }
+
   function say(text) {
     if (muted) return;
     try {
       if (!("speechSynthesis" in window)) return;
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "es-CL";
+      u.lang = "es-419";
       u.rate = 1;
-      u.volume = 0.9;
-      const voices = speechSynthesis.getVoices();
-      const es = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
-      if (es) u.voice = es;
+      u.volume = 1;
+      const voice = pickLatinVoice();
+      if (voice) u.voice = voice;
       speechSynthesis.speak(u);
     } catch (_) {}
   }
 
-  // Desbloquea speechSynthesis en iOS/Safari (requiere un gesto del usuario)
   function primeSpeech() {
     try {
       if ("speechSynthesis" in window) {
@@ -110,8 +169,52 @@
     } catch (_) {}
   }
 
+  const sayAttention = () => say("Atención");
   const sayHalf = () => say("Llevas la mitad");
   const sayTen = () => say("10 segundos");
+
+  // ---------- Persistencia ----------
+  function setSound(name) {
+    if (!SOUNDS[name]) return;
+    soundName = name;
+    soundPreset = SOUNDS[name];
+    soundSelect.value = name;
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          work: config.work,
+          rest: config.rest,
+          series: config.series,
+          sound: soundName
+        })
+      );
+    } catch (_) {}
+  }
+
+  function saveSoundOnly() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      saved.sound = soundName;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (_) {}
+  }
+
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (Number.isFinite(saved.work) && saved.work >= 1) workInput.value = saved.work;
+      if (Number.isFinite(saved.rest) && saved.rest >= 1) restInput.value = saved.rest;
+      if (Number.isFinite(saved.series) && saved.series >= 1) seriesInput.value = saved.series;
+      if (saved.sound && SOUNDS[saved.sound]) setSound(saved.sound);
+    } catch (_) {}
+  }
 
   // ---------- Lógica de intervalos ----------
   function buildPhases(work, rest, series) {
@@ -155,6 +258,8 @@
     }
     configError.hidden = true;
     config = cfg;
+    setSound(soundSelect.value);
+    savePrefs();
     phases = buildPhases(cfg.work, cfg.rest, cfg.series);
     idx = 0;
     ensureAudio();
@@ -179,6 +284,7 @@
     if (phase.type === "ready") {
       phaseLabel.textContent = "Prepárate";
       seriesCounter.textContent = `Serie 1 de ${config.series}`;
+      sayAttention();
     } else if (phase.type === "work") {
       phaseLabel.textContent = "Trabajo";
       seriesCounter.textContent = `Serie ${phase.seriesNumber} de ${config.series}`;
@@ -309,6 +415,10 @@
   }
 
   // ---------- Eventos ----------
+  soundSelect.addEventListener("change", () => {
+    setSound(soundSelect.value);
+    saveSoundOnly();
+  });
   startBtn.addEventListener("click", start);
   pauseBtn.addEventListener("click", () => {
     intervalId ? pause() : resume();
@@ -321,4 +431,7 @@
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
+
+  // ---------- Inicialización ----------
+  loadSaved();
 })();
