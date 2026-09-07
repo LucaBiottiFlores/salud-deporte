@@ -512,6 +512,134 @@
   againBtn.addEventListener("click", reset);
   muteBtn.addEventListener("click", () => setMuted(!muted));
 
+  // ---------- Pestañas ----------
+  const tabTabata = $("tabTabata");
+  const tabNotas = $("tabNotas");
+  const viewTabata = $("viewTabata");
+  const viewNotas = $("viewNotas");
+
+  function switchView(name) {
+    const showTabata = name === "tabata";
+    viewTabata.hidden = !showTabata;
+    viewNotas.hidden = showTabata;
+    tabTabata.classList.toggle("is-active", showTabata);
+    tabNotas.classList.toggle("is-active", !showTabata);
+    tabTabata.setAttribute("aria-selected", String(showTabata));
+    tabNotas.setAttribute("aria-selected", String(!showTabata));
+  }
+
+  tabTabata.addEventListener("click", () => switchView("tabata"));
+  tabNotas.addEventListener("click", () => switchView("notas"));
+
+  // ---------- Notas (CRUD) ----------
+  const NOTES_KEY = "salud-deporte:notas";
+  const notesListEl = $("notesList");
+  const newNoteBtn = $("newNoteBtn");
+
+  let notes = [];
+
+  function loadNotes() {
+    try {
+      const raw = localStorage.getItem(NOTES_KEY);
+      notes = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(notes)) notes = [];
+    } catch (_) {
+      notes = [];
+    }
+  }
+
+  function persistNotes() {
+    try {
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    } catch (_) {}
+  }
+
+  function makeId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function noteUpdatedLabel(ts) {
+    const d = new Date(ts);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `Actualizada ${dd}/${mm} ${hh}:${mi}`;
+  }
+
+  function buildNoteCard(note) {
+    const card = document.createElement("article");
+    card.className = "note-card";
+
+    const title = document.createElement("input");
+    title.className = "note-title";
+    title.type = "text";
+    title.placeholder = "Título (ej: alumno)";
+    title.value = note.title || "";
+
+    const body = document.createElement("textarea");
+    body.className = "note-body";
+    body.placeholder = "Escribe tus comentarios...";
+    body.value = note.body || "";
+
+    const meta = document.createElement("span");
+    meta.className = "note-meta";
+    meta.textContent = noteUpdatedLabel(note.updatedAt || Date.now());
+
+    const actions = document.createElement("div");
+    actions.className = "note-actions";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "btn";
+    saveBtn.textContent = "Guardar";
+    saveBtn.addEventListener("click", () => {
+      note.title = title.value;
+      note.body = body.value;
+      note.updatedAt = Date.now();
+      persistNotes();
+      renderNotes();
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn btn-ghost";
+    deleteBtn.textContent = "Eliminar";
+    deleteBtn.addEventListener("click", () => {
+      notes = notes.filter((n) => n.id !== note.id);
+      persistNotes();
+      renderNotes();
+    });
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(meta);
+    card.appendChild(actions);
+    return card;
+  }
+
+  function renderNotes() {
+    notesListEl.innerHTML = "";
+    if (!notes.length) {
+      const empty = document.createElement("p");
+      empty.className = "notes-empty";
+      empty.textContent = "No hay notas todavía. Crea la primera con «+ Nueva nota».";
+      notesListEl.appendChild(empty);
+      return;
+    }
+    const sorted = [...notes].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    sorted.forEach((note) => notesListEl.appendChild(buildNoteCard(note)));
+  }
+
+  function createNote() {
+    notes.push({ id: makeId(), title: "", body: "", updatedAt: Date.now() });
+    persistNotes();
+    renderNotes();
+  }
+
+  newNoteBtn.addEventListener("click", createNote);
+
   // ---------- PWA ----------
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {});
@@ -522,4 +650,6 @@
 
   // ---------- Inicialización ----------
   loadSaved();
+  loadNotes();
+  renderNotes();
 })();
