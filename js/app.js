@@ -376,7 +376,6 @@
     }
 
     if (remainingMs <= 0) {
-      if (phase.type === "work") playBoxingBell();
       idx++;
       beginPhase();
     }
