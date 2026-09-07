@@ -6,10 +6,8 @@
   const timerEl = $("timer");
   const doneEl = $("done");
 
-  const workMinInput = $("workMin");
-  const workSecInput = $("workSec");
-  const restMinInput = $("restMin");
-  const restSecInput = $("restSec");
+  const workInput = $("work");
+  const restInput = $("rest");
   const seriesInput = $("series");
   const soundSelect = $("soundSelect");
 
@@ -228,10 +226,8 @@
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          workMin: config.workMin,
-          workSec: config.workSec,
-          restMin: config.restMin,
-          restSec: config.restSec,
+          work: config.work,
+          rest: config.rest,
           series: config.series,
           sound: soundName
         })
@@ -253,19 +249,8 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (saved.workMin !== undefined || saved.workSec !== undefined) {
-        if (Number.isFinite(saved.workMin) && saved.workMin >= 0) workMinInput.value = saved.workMin;
-        if (Number.isFinite(saved.workSec) && saved.workSec >= 0 && saved.workSec <= 59) workSecInput.value = saved.workSec;
-        if (Number.isFinite(saved.restMin) && saved.restMin >= 0) restMinInput.value = saved.restMin;
-        if (Number.isFinite(saved.restSec) && saved.restSec >= 0 && saved.restSec <= 59) restSecInput.value = saved.restSec;
-      } else if (Number.isFinite(saved.work) && Number.isFinite(saved.rest)) {
-        const w = Math.floor(saved.work);
-        const r = Math.floor(saved.rest);
-        workMinInput.value = Math.floor(w / 60);
-        workSecInput.value = w % 60;
-        restMinInput.value = Math.floor(r / 60);
-        restSecInput.value = r % 60;
-      }
+      if (Number.isFinite(saved.work) && saved.work >= 1) workInput.value = secondsToDisplay(Math.floor(saved.work));
+      if (Number.isFinite(saved.rest) && saved.rest >= 1) restInput.value = secondsToDisplay(Math.floor(saved.rest));
       if (Number.isFinite(saved.series) && saved.series >= 1) seriesInput.value = saved.series;
       if (saved.sound && SOUNDS[saved.sound]) setSound(saved.sound);
     } catch (_) {}
@@ -284,27 +269,51 @@
     return p;
   }
 
+  function formatTimeInput(digits) {
+    if (!digits) return "";
+    const d = digits.padStart(3, "0");
+    let minutes = parseInt(d.slice(0, -2), 10) || 0;
+    let seconds = parseInt(d.slice(-2), 10) || 0;
+    if (seconds >= 60) {
+      minutes += Math.floor(seconds / 60);
+      seconds = seconds % 60;
+    }
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function secondsToDisplay(total) {
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function parseTime(str) {
+    const s = (str || "").trim();
+    if (!s) return NaN;
+    if (s.includes(":")) {
+      const parts = s.split(":");
+      if (parts.length !== 2) return NaN;
+      const m = Math.floor(Number(parts[0]));
+      const sec = Math.floor(Number(parts[1]));
+      if (!Number.isFinite(m) || m < 0 || !Number.isFinite(sec) || sec < 0 || sec > 59) return NaN;
+      return m * 60 + sec;
+    }
+    const n = Math.floor(Number(s));
+    return Number.isFinite(n) ? n : NaN;
+  }
+
   function readConfig() {
-    const workMin = Math.floor(Number(workMinInput.value));
-    const workSec = Math.floor(Number(workSecInput.value));
-    const restMin = Math.floor(Number(restMinInput.value));
-    const restSec = Math.floor(Number(restSecInput.value));
+    const work = parseTime(workInput.value);
+    const rest = parseTime(restInput.value);
     const series = Math.floor(Number(seriesInput.value));
     if (
-      !Number.isFinite(workMin) || workMin < 0 ||
-      !Number.isFinite(workSec) || workSec < 0 || workSec > 59 ||
-      !Number.isFinite(restMin) || restMin < 0 ||
-      !Number.isFinite(restSec) || restSec < 0 || restSec > 59 ||
+      !Number.isFinite(work) || work < 1 ||
+      !Number.isFinite(rest) || rest < 1 ||
       !Number.isFinite(series) || series < 1
     ) {
-      throw new Error("Ingresa minutos (0 o más) y segundos (0–59) válidos, y al menos 1 serie.");
+      throw new Error("Ingresa tiempos válidos en formato MM:SS (ej: 1:30) y al menos 1 serie.");
     }
-    const work = workMin * 60 + workSec;
-    const rest = restMin * 60 + restSec;
-    if (work < 1 || rest < 1) {
-      throw new Error("Trabajo y descanso deben sumar al menos 1 segundo.");
-    }
-    return { work, rest, series, workMin, workSec, restMin, restSec };
+    return { work, rest, series };
   }
 
   // ---------- Control de sesión ----------
@@ -480,6 +489,17 @@
   }
 
   // ---------- Eventos ----------
+  function attachTimeFormat(input) {
+    input.addEventListener("input", () => {
+      const digits = input.value.replace(/\D/g, "");
+      input.value = formatTimeInput(digits);
+      const pos = input.value.length;
+      try { input.setSelectionRange(pos, pos); } catch (_) {}
+    });
+  }
+  attachTimeFormat(workInput);
+  attachTimeFormat(restInput);
+
   soundSelect.addEventListener("change", () => {
     setSound(soundSelect.value);
     saveSoundOnly();
