@@ -118,29 +118,17 @@
     osc.stop(t0 + durSec + 0.05);
   }
 
-  // Campana de boxeo: parciales inarmónicos con decaimiento exponencial
-  function bell(baseFreq, durSec, vol) {
-    if (muted || !audioCtx) return;
-    const t0 = audioCtx.currentTime;
-    const partials = [
-      { mult: 1.0, amp: 1.0, decay: durSec },
-      { mult: 1.5, amp: 0.5, decay: durSec * 0.7 },
-      { mult: 2.0, amp: 0.35, decay: durSec * 0.5 },
-      { mult: 2.7, amp: 0.2, decay: durSec * 0.35 }
-    ];
-    partials.forEach((part) => {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = baseFreq * part.mult;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(vol * part.amp, t0 + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + part.decay);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(t0);
-      osc.stop(t0 + part.decay + 0.05);
-    });
+  // Audios de archivo: campana original y arranque de carrera
+  const boxingBellFile = new Audio("audio/campana_boxeo.mp3");
+  const raceStartFile = new Audio("audio/inicio_carrera_v2.wav");
+
+  function playFile(audio) {
+    if (muted || !audio) return;
+    try {
+      audio.currentTime = 0;
+      const p = audio.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (_) {}
   }
 
   function playCountdownBeep(step) {
@@ -148,12 +136,11 @@
     tone(p.beeps[step] || p.beeps[1], 0.14, p.vol, p.wave);
   }
 
-  // Campana de boxeo: 3 toques al iniciar y al terminar cada serie
+  // Campana de boxeo (archivo original): 3 toques al iniciar y al terminar cada serie
   function playBoxingBell() {
-    const p = soundPreset;
-    bell(p.bell, 0.5, p.vol);
-    setTimeout(() => bell(p.bell, 0.5, p.vol), 400);
-    setTimeout(() => bell(p.bell, 0.5, p.vol), 800);
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => playFile(boxingBellFile), i * 450);
+    }
   }
 
   // Tono suave al empezar el descanso
@@ -335,6 +322,7 @@
     lastShownSecond = null;
     phase.halfSaid = false;
     phase.tenSaid = false;
+    phase.carreraPlayed = false;
 
     if (phase.type === "ready") {
       phaseLabel.textContent = "Prepárate";
@@ -364,11 +352,17 @@
     const shownSecond = Math.ceil(remainingMs / 1000);
     updateDisplay(shownSecond);
 
-    if (shownSecond !== lastShownSecond) {
+    if (phase.type !== "ready" && shownSecond !== lastShownSecond) {
       lastShownSecond = shownSecond;
       if (shownSecond >= 1 && shownSecond <= 3) {
         playCountdownBeep(shownSecond);
       }
+    }
+
+    // Cuenta regresiva inicial: secuencia 3-2-1-GO de carrera en los últimos 3 segundos
+    if (phase.type === "ready" && !phase.carreraPlayed && remainingMs <= 3000) {
+      phase.carreraPlayed = true;
+      playFile(raceStartFile);
     }
 
     if (phase.type === "work") {

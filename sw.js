@@ -1,4 +1,4 @@
-const CACHE = "salud-deporte-v7";
+const CACHE = "salud-deporte-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,7 +6,9 @@ const ASSETS = [
   "./js/app.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./audio/campana_boxeo.mp3",
+  "./audio/inicio_carrera_v2.wav"
 ];
 
 self.addEventListener("install", (e) => {
