@@ -351,15 +351,8 @@
     const shownSecond = Math.ceil(remainingMs / 1000);
     updateDisplay(shownSecond);
 
-    if (phase.type === "rest" && shownSecond !== lastShownSecond) {
-      lastShownSecond = shownSecond;
-      if (shownSecond >= 1 && shownSecond <= 3) {
-        playCountdownBeep(shownSecond);
-      }
-    }
-
-    // Sonido de carrera en los últimos 3 segundos de la cuenta inicial y de cada ronda de trabajo
-    if ((phase.type === "ready" || phase.type === "work") && !phase.carreraPlayed && remainingMs <= 3000) {
+    // Sonido de carrera en los últimos 3 segundos de cada fase (cuenta inicial, trabajo y descanso)
+    if (!phase.carreraPlayed && remainingMs <= 3000) {
       phase.carreraPlayed = true;
       playFile(raceStartFile);
     }
