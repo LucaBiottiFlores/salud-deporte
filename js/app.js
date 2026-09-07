@@ -41,8 +41,9 @@
       label: "Clásico",
       wave: "square",
       beeps: { 3: 880, 2: 988, 1: 1109 },
-      go: [700, 1400],
       end: [1400, 700],
+      go: [700, 1400],
+      bell: 1300,
       rest: 523,
       vol: 0.5
     },
@@ -50,8 +51,9 @@
       label: "Agudo",
       wave: "square",
       beeps: { 3: 1047, 2: 1175, 1: 1319 },
-      go: [880, 1760],
       end: [1760, 880],
+      go: [880, 1760],
+      bell: 1600,
       rest: 659,
       vol: 0.5
     },
@@ -59,8 +61,9 @@
       label: "Grave",
       wave: "square",
       beeps: { 3: 659, 2: 740, 1: 831 },
-      go: [500, 1000],
       end: [1000, 500],
+      go: [500, 1000],
+      bell: 1100,
       rest: 440,
       vol: 0.45
     }
@@ -115,15 +118,40 @@
     osc.stop(t0 + durSec + 0.05);
   }
 
+  // Campana de boxeo: parciales inarmónicos con decaimiento exponencial
+  function bell(baseFreq, durSec, vol) {
+    if (muted || !audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const partials = [
+      { mult: 1.0, amp: 1.0, decay: durSec },
+      { mult: 1.5, amp: 0.5, decay: durSec * 0.7 },
+      { mult: 2.0, amp: 0.35, decay: durSec * 0.5 },
+      { mult: 2.7, amp: 0.2, decay: durSec * 0.35 }
+    ];
+    partials.forEach((part) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = baseFreq * part.mult;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(vol * part.amp, t0 + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + part.decay);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + part.decay + 0.05);
+    });
+  }
+
   function playCountdownBeep(step) {
     const p = soundPreset;
     tone(p.beeps[step] || p.beeps[1], 0.14, p.vol, p.wave);
   }
 
-  // Señal fuerte y ascendente al empezar el trabajo
-  function playGo() {
+  // Campana de boxeo al iniciar cada serie
+  function playBoxingBell() {
     const p = soundPreset;
-    chirp(p.go[0], p.go[1], 0.3, p.vol, p.wave);
+    bell(p.bell, 0.8, p.vol);
   }
 
   // Señal fuerte y descendente al terminar cada serie
@@ -145,7 +173,7 @@
     setTimeout(() => chirp(p.go[0] * 1.5, p.go[1] * 1.5, 0.3, p.vol, p.wave), 200);
   }
 
-  // ---------- Voz (español latino neutro) ----------
+  // ---------- Voz (español latino neutro, tono de entrenador) ----------
   let voicesCache = [];
 
   function refreshVoices() {
@@ -181,7 +209,8 @@
       if (!("speechSynthesis" in window)) return;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "es-419";
-      u.rate = 1;
+      u.pitch = 1.15; // entonación más enérgica, tipo entrenador
+      u.rate = 1.08;  // ritmo un poco más vivo
       u.volume = 1;
       const voice = pickLatinVoice();
       if (voice) u.voice = voice;
@@ -318,7 +347,7 @@
     } else if (phase.type === "work") {
       phaseLabel.textContent = "Trabajo";
       seriesCounter.textContent = `Serie ${phase.seriesNumber} de ${config.series}`;
-      playGo();
+      playBoxingBell();
     } else {
       phaseLabel.textContent = "Descanso";
       seriesCounter.textContent = `Descanso ${phase.seriesNumber} de ${config.series - 1}`;
