@@ -136,11 +136,9 @@
     tone(p.beeps[step] || p.beeps[1], 0.14, p.vol, p.wave);
   }
 
-  // Campana de boxeo (archivo original): 3 toques al iniciar y al terminar cada serie
+  // Campana de boxeo (archivo original): el audio ya trae los 3 toques
   function playBoxingBell() {
-    for (let i = 0; i < 3; i++) {
-      setTimeout(() => playFile(boxingBellFile), i * 450);
-    }
+    playFile(boxingBellFile);
   }
 
   // Tono suave al empezar el descanso
