@@ -6,8 +6,10 @@
   const timerEl = $("timer");
   const doneEl = $("done");
 
-  const workInput = $("work");
-  const restInput = $("rest");
+  const workMinInput = $("workMin");
+  const workSecInput = $("workSec");
+  const restMinInput = $("restMin");
+  const restSecInput = $("restSec");
   const seriesInput = $("series");
   const soundSelect = $("soundSelect");
 
@@ -226,8 +228,10 @@
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          work: config.work,
-          rest: config.rest,
+          workMin: config.workMin,
+          workSec: config.workSec,
+          restMin: config.restMin,
+          restSec: config.restSec,
           series: config.series,
           sound: soundName
         })
@@ -249,8 +253,19 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (Number.isFinite(saved.work) && saved.work >= 1) workInput.value = saved.work;
-      if (Number.isFinite(saved.rest) && saved.rest >= 1) restInput.value = saved.rest;
+      if (saved.workMin !== undefined || saved.workSec !== undefined) {
+        if (Number.isFinite(saved.workMin) && saved.workMin >= 0) workMinInput.value = saved.workMin;
+        if (Number.isFinite(saved.workSec) && saved.workSec >= 0 && saved.workSec <= 59) workSecInput.value = saved.workSec;
+        if (Number.isFinite(saved.restMin) && saved.restMin >= 0) restMinInput.value = saved.restMin;
+        if (Number.isFinite(saved.restSec) && saved.restSec >= 0 && saved.restSec <= 59) restSecInput.value = saved.restSec;
+      } else if (Number.isFinite(saved.work) && Number.isFinite(saved.rest)) {
+        const w = Math.floor(saved.work);
+        const r = Math.floor(saved.rest);
+        workMinInput.value = Math.floor(w / 60);
+        workSecInput.value = w % 60;
+        restMinInput.value = Math.floor(r / 60);
+        restSecInput.value = r % 60;
+      }
       if (Number.isFinite(saved.series) && saved.series >= 1) seriesInput.value = saved.series;
       if (saved.sound && SOUNDS[saved.sound]) setSound(saved.sound);
     } catch (_) {}
@@ -270,17 +285,26 @@
   }
 
   function readConfig() {
-    const work = Math.floor(Number(workInput.value));
-    const rest = Math.floor(Number(restInput.value));
+    const workMin = Math.floor(Number(workMinInput.value));
+    const workSec = Math.floor(Number(workSecInput.value));
+    const restMin = Math.floor(Number(restMinInput.value));
+    const restSec = Math.floor(Number(restSecInput.value));
     const series = Math.floor(Number(seriesInput.value));
     if (
-      !Number.isFinite(work) || work < 1 ||
-      !Number.isFinite(rest) || rest < 1 ||
+      !Number.isFinite(workMin) || workMin < 0 ||
+      !Number.isFinite(workSec) || workSec < 0 || workSec > 59 ||
+      !Number.isFinite(restMin) || restMin < 0 ||
+      !Number.isFinite(restSec) || restSec < 0 || restSec > 59 ||
       !Number.isFinite(series) || series < 1
     ) {
-      throw new Error("Ingresa números enteros positivos (mínimo 1). Sin límite máximo.");
+      throw new Error("Ingresa minutos (0 o más) y segundos (0–59) válidos, y al menos 1 serie.");
     }
-    return { work, rest, series };
+    const work = workMin * 60 + workSec;
+    const rest = restMin * 60 + restSec;
+    if (work < 1 || rest < 1) {
+      throw new Error("Trabajo y descanso deben sumar al menos 1 segundo.");
+    }
+    return { work, rest, series, workMin, workSec, restMin, restSec };
   }
 
   // ---------- Control de sesión ----------

@@ -23,12 +23,22 @@
       <h2>Configurar sesión</h2>
       <div class="fields">
         <label class="field">
-          <span>Trabajo (segundos)</span>
-          <input id="work" type="number" min="1" step="1" inputmode="numeric" value="30">
+          <span>Trabajo</span>
+          <span class="time-inputs">
+            <input id="workMin" type="number" min="0" step="1" inputmode="numeric" value="0" aria-label="Minutos de trabajo">
+            <span class="unit">min</span>
+            <input id="workSec" type="number" min="0" max="59" step="1" inputmode="numeric" value="30" aria-label="Segundos de trabajo">
+            <span class="unit">seg</span>
+          </span>
         </label>
         <label class="field">
-          <span>Descanso (segundos)</span>
-          <input id="rest" type="number" min="1" step="1" inputmode="numeric" value="15">
+          <span>Descanso</span>
+          <span class="time-inputs">
+            <input id="restMin" type="number" min="0" step="1" inputmode="numeric" value="0" aria-label="Minutos de descanso">
+            <span class="unit">min</span>
+            <input id="restSec" type="number" min="0" max="59" step="1" inputmode="numeric" value="15" aria-label="Segundos de descanso">
+            <span class="unit">seg</span>
+          </span>
         </label>
         <label class="field">
           <span>Series</span>
