@@ -68,6 +68,8 @@ tres parámetros:
 - **RF20** — La voz usa acento de español latinoamericano neutro.
 - **RF21** — Los sonidos tienen volumen suficiente para oírse en ambientes ruidosos
   (gimnasios y espacios abiertos).
+- **RF22** — Al iniciar el trabajo (tras la cuenta regresiva) suena una señal fuerte y ascendente.
+- **RF23** — Al finalizar cada serie suena una señal fuerte y descendente.
 
 ## 6. Reglas de negocio / lógica
 

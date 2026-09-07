@@ -35,31 +35,34 @@
   let muted = false;
   let wakeLock = null;
 
-  // ---------- Sonidos (3 variedades) ----------
+  // ---------- Sonidos (3 variedades, timbres audibles en ambientes ruidosos) ----------
   const SOUNDS = {
     clasico: {
       label: "Clásico",
-      wave: "triangle",
-      beeps: { 3: 392, 2: 440, 1: 523 },
-      go: 660,
-      rest: 392,
+      wave: "square",
+      beeps: { 3: 880, 2: 988, 1: 1109 },
+      go: [700, 1400],
+      end: [1400, 700],
+      rest: 523,
       vol: 0.5
     },
     agudo: {
       label: "Agudo",
-      wave: "sine",
-      beeps: { 3: 523, 2: 587, 1: 659 },
-      go: 880,
-      rest: 494,
+      wave: "square",
+      beeps: { 3: 1047, 2: 1175, 1: 1319 },
+      go: [880, 1760],
+      end: [1760, 880],
+      rest: 659,
       vol: 0.5
     },
     grave: {
       label: "Grave",
-      wave: "triangle",
-      beeps: { 3: 262, 2: 294, 1: 330 },
-      go: 440,
-      rest: 262,
-      vol: 0.5
+      wave: "square",
+      beeps: { 3: 659, 2: 740, 1: 831 },
+      go: [500, 1000],
+      end: [1000, 500],
+      rest: 440,
+      vol: 0.45
     }
   };
 
@@ -78,7 +81,7 @@
     }
   }
 
-  function tone(freq, durSec, vol = 0.5, type = "triangle") {
+  function tone(freq, durSec, vol, type) {
     if (muted || !audioCtx) return;
     const t0 = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
@@ -94,25 +97,52 @@
     osc.stop(t0 + durSec + 0.05);
   }
 
+  // Barrido de frecuencia (chirp): sube o baja, corta mejor el ruido ambiente
+  function chirp(fromFreq, toFreq, durSec, vol, type) {
+    if (muted || !audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(fromFreq, t0);
+    osc.frequency.exponentialRampToValueAtTime(toFreq, t0 + durSec);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durSec);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + durSec + 0.05);
+  }
+
   function playCountdownBeep(step) {
     const p = soundPreset;
-    tone(p.beeps[step] || p.beeps[1], 0.15, p.vol, p.wave);
+    tone(p.beeps[step] || p.beeps[1], 0.14, p.vol, p.wave);
   }
 
+  // Señal fuerte y ascendente al empezar el trabajo
   function playGo() {
     const p = soundPreset;
-    tone(p.go, 0.26, p.vol, p.wave);
+    chirp(p.go[0], p.go[1], 0.3, p.vol, p.wave);
   }
 
+  // Señal fuerte y descendente al terminar cada serie
+  function playSeriesEnd() {
+    const p = soundPreset;
+    chirp(p.end[0], p.end[1], 0.3, p.vol, p.wave);
+  }
+
+  // Tono suave al empezar el descanso
   function playRestTone() {
     const p = soundPreset;
-    tone(p.rest, 0.22, p.vol * 0.8, p.wave);
+    tone(p.rest, 0.22, p.vol * 0.6, "sine");
   }
 
+  // Celebración al completar toda la sesión
   function playDone() {
     const p = soundPreset;
-    tone(p.go, 0.18, p.vol, p.wave);
-    setTimeout(() => tone(p.beeps[1], 0.32, p.vol, p.wave), 190);
+    chirp(p.go[0], p.go[1], 0.2, p.vol, p.wave);
+    setTimeout(() => chirp(p.go[0] * 1.5, p.go[1] * 1.5, 0.3, p.vol, p.wave), 200);
   }
 
   // ---------- Voz (español latino neutro) ----------
@@ -329,6 +359,7 @@
     }
 
     if (remainingMs <= 0) {
+      if (phase.type === "work") playSeriesEnd();
       idx++;
       beginPhase();
     }
@@ -372,7 +403,7 @@
     clearInterval(intervalId);
     intervalId = null;
     releaseWakeLock();
-    playDone();
+    setTimeout(playDone, 320);
     hide(timerEl);
     show(doneEl);
     const totalSec = phases.reduce(
