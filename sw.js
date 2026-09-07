@@ -1,4 +1,4 @@
-const CACHE = "salud-deporte-v5";
+const CACHE = "salud-deporte-v6";
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,18 +23,20 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Red primero: siempre busca la versión fresca y cae a caché solo si no hay red
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(e.request).then((res) => {
+    fetch(e.request)
+      .then((res) => {
         if (res && res.status === 200) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
         }
         return res;
-      });
-    })
+      })
+      .catch(() =>
+        caches.match(e.request).then((cached) => cached || caches.match("./"))
+      )
   );
 });
