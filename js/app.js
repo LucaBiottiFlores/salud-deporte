@@ -148,16 +148,12 @@
     tone(p.beeps[step] || p.beeps[1], 0.14, p.vol, p.wave);
   }
 
-  // Campana de boxeo al iniciar cada serie
+  // Campana de boxeo: 3 toques al iniciar y al terminar cada serie
   function playBoxingBell() {
     const p = soundPreset;
-    bell(p.bell, 0.8, p.vol);
-  }
-
-  // Señal fuerte y descendente al terminar cada serie
-  function playSeriesEnd() {
-    const p = soundPreset;
-    chirp(p.end[0], p.end[1], 0.3, p.vol, p.wave);
+    bell(p.bell, 0.5, p.vol);
+    setTimeout(() => bell(p.bell, 0.5, p.vol), 400);
+    setTimeout(() => bell(p.bell, 0.5, p.vol), 800);
   }
 
   // Tono suave al empezar el descanso
@@ -209,8 +205,8 @@
       if (!("speechSynthesis" in window)) return;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "es-419";
-      u.pitch = 1.15; // entonación más enérgica, tipo entrenador
-      u.rate = 1.08;  // ritmo un poco más vivo
+      u.pitch = 1.2;  // entonación enérgica, de entrenador que anima
+      u.rate = 1.12;  // ritmo más vivo
       u.volume = 1;
       const voice = pickLatinVoice();
       if (voice) u.voice = voice;
@@ -388,7 +384,7 @@
     }
 
     if (remainingMs <= 0) {
-      if (phase.type === "work") playSeriesEnd();
+      if (phase.type === "work") playBoxingBell();
       idx++;
       beginPhase();
     }
@@ -432,7 +428,7 @@
     clearInterval(intervalId);
     intervalId = null;
     releaseWakeLock();
-    setTimeout(playDone, 320);
+    setTimeout(playDone, 1300);
     hide(timerEl);
     show(doneEl);
     const totalSec = phases.reduce(
