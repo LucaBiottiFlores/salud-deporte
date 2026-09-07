@@ -333,6 +333,7 @@
     } else {
       phaseLabel.textContent = "Descanso";
       seriesCounter.textContent = `Descanso ${phase.seriesNumber} de ${config.series - 1}`;
+      say("Descanso");
       playRestTone();
     }
     timerEl.dataset.phase = phase.type;
@@ -350,15 +351,15 @@
     const shownSecond = Math.ceil(remainingMs / 1000);
     updateDisplay(shownSecond);
 
-    if (phase.type !== "ready" && shownSecond !== lastShownSecond) {
+    if (phase.type === "rest" && shownSecond !== lastShownSecond) {
       lastShownSecond = shownSecond;
       if (shownSecond >= 1 && shownSecond <= 3) {
         playCountdownBeep(shownSecond);
       }
     }
 
-    // Cuenta regresiva inicial: secuencia 3-2-1-GO de carrera en los últimos 3 segundos
-    if (phase.type === "ready" && !phase.carreraPlayed && remainingMs <= 3000) {
+    // Sonido de carrera en los últimos 3 segundos de la cuenta inicial y de cada ronda de trabajo
+    if ((phase.type === "ready" || phase.type === "work") && !phase.carreraPlayed && remainingMs <= 3000) {
       phase.carreraPlayed = true;
       playFile(raceStartFile);
     }
